@@ -37,17 +37,15 @@ int main(int argc, char* argv[]) {
     u8* temp = ReverseLevel1(target);
     stop = std::chrono::system_clock::now();
 
-    u8 output[32];
-
-    u8 newInput[32];
-    memcpy(newInput, temp, sizeof(u8) * 32);
+    u8 result[32];
+    memcpy(result, temp, sizeof(u8) * 32);
 
     std::cout << "============================================" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "Using this found solution:" << std::endl << "[";
     for (u8 j = 0; j < 32; j++) {
-        std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)newInput[j];
+        std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)result[j];
         if (j != 31)
             std::cout << ", ";
     }
@@ -60,12 +58,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Found solution in " << elapsed_seconds.count() << " seconds." << std::endl;
     std::cout << "============================================" << std::endl;
 
-    Forward(newInput, output, confusion, diffusion);
+    u8 output[32];
+    Forward(result, output, confusion, diffusion);
 
     std::cout << "Target:       " << target << std::endl;
     std::cout << "Calculated:   " << output << std::endl;
 
-    std::cout << "Output:" << std::endl << "[";
+    std::cout << "Output: [";
     for (u8 j = 0; j < 16; j++) {
         std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)output[j];
         if (j != 15)
