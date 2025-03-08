@@ -40,8 +40,7 @@ int main(int argc, char* argv[]) {
     u8 output[32];
 
     u8 newInput[32];
-    for (u8 i = 0; i < 32; i++)
-        newInput[i] = temp[i];
+    memcpy(newInput, temp, sizeof(u8) * 32);
 
     std::cout << "============================================" << std::endl;
     std::cout << "============================================" << std::endl;

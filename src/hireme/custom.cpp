@@ -98,11 +98,8 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
 
                 i = aPreviousProgress.iteration;
 
-                for (u8 j = 0; j < 32; j++)
-                    prevCalculatedConfusions[j] = aPreviousProgress.prevConfussion[j];
-
-                for (u8 j = 0; j < 32; j++)
-                    indexes[j] = aPreviousProgress.prevIndexes[j];
+                memcpy(prevCalculatedConfusions, aPreviousProgress.prevConfussion, sizeof(u8) * 32);
+                memcpy(indexes, aPreviousProgress.prevIndexes, sizeof(u8) * 32);
 
                 std::vector<std::pair<u8, u8>> temp(aPreviousProgress.progress);
                 currentCheckingIndexes = temp;
@@ -176,11 +173,8 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
             PreviousIndexProgressInfo progress;
             progress.iteration = i;
 
-            for (u8 j = 0; j < 32; j++)
-                progress.prevConfussion[j] = prevCalculatedConfusions[j];
-
-            for (u8 j = 0; j < 32; j++)
-                progress.prevIndexes[j] = indexes[j];
+            memcpy(progress.prevConfussion, prevCalculatedConfusions, sizeof(u8) * 32);
+            memcpy(progress.prevIndexes, indexes, sizeof(u8) * 32);
 
             std::vector<std::pair<u8, u8>> temp(currentCheckingIndexes);
             progress.progress = temp;
@@ -189,8 +183,7 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
 
         currentCheckingIndexes.clear();
 
-        for (u8 j = 0; j < 32; j++)
-            prevCalculatedConfusions[j] = calculatedConfusions[j];
+        memcpy(prevCalculatedConfusions, calculatedConfusions, sizeof(u8) * 32);
 
         for (u8 j = 0; j < 32; j++) {
             u8 currentValue = calculatedConfusions[j];
