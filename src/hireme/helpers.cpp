@@ -213,8 +213,6 @@ u8 getIndexFromConfussionValue(u8 value, bool secondHalf) {
 
 // *****
 
-std::vector<PreviousIndexProgressInfo> previousProgress;
-
 bool setupIndexesListFromCheckingRepeatingList(std::vector<std::pair<u8, u8>>& repeating, u8 prevInput[32], u8 currentIndex) {
 	std::pair<u8, u8> currentChecking = repeating[currentIndex];
 

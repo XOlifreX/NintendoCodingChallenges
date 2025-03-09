@@ -30,8 +30,6 @@ extern std::vector<u8> repeatingValues;
 
 extern std::map<u8, std::vector<u8>> repeatingValueIndexes;
 
-extern std::vector<PreviousIndexProgressInfo> previousProgress;
-
 // Setup methods
 void calculateAllPairsForASCIIChars();
 void setupConfussionHelperValues();

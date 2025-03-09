@@ -1,23 +1,8 @@
 #include "custom.h"
 
+// **********
 
-u8* ReverseLevel1(u8 wanted[16], int cycles) {
-    std::cout << "Wanted:" << std::endl << "[";
-    for (u8 j = 0; j < 16; j++) {
-        std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)wanted[j];
-        if (j != 15)
-            std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-
-    // *************************
-    // ***** SETUP *************
-    // *************************
-    std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
-
-    setupConfussionHelperValues();
-    calculateAllPairsForASCIIChars();
-
+std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* initial = nullptr) {
     u8 indexes[32];
     u8 prevCalculatedConfusions[32];
     for (u8 j = 0; j < 32; j++) {
@@ -25,10 +10,12 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
         prevCalculatedConfusions[j] = 0;
     }
 
-    std::cout << "Setup finished! Calculating solution started..." << std::endl;
+    if (initial != nullptr)
+        memcpy(indexes, initial, sizeof(u8) * 32);
     
     // Keeps track of the repeating indexes which ones need to be used.
     std::vector<std::pair<u8, u8>> currentCheckingIndexes;
+    std::vector<PreviousIndexProgressInfo> previousProgress;
 
     // *************************
     // ***** MAIN **************
@@ -45,7 +32,7 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
         // *************************
         // ***** Setup Initial *****
         // *************************
-        if (i == 0) // First cycle, setup initial indexes from wanted.
+        if (i == 0 && initial == nullptr) // First cycle, setup initial indexes from wanted.
             setupStartReverseLevel1(wanted, indexes);
 
         // *************************
@@ -132,6 +119,9 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
             }
 
             // Try again
+            if (initial == nullptr)
+                return nullptr;
+
             i = -1;
             currentCheckingIndexes.clear();
             continue;
@@ -210,3 +200,47 @@ u8* ReverseLevel1(u8 wanted[16], int cycles) {
 
     return indexes;
 }
+
+// **********
+
+void ReverseLevel1_Initialize(u8 wanted[16]) {
+    std::cout << "Wanted:" << std::endl << "[";
+    for (u8 j = 0; j < 16; j++) {
+        std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)wanted[j];
+        if (j != 15)
+            std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+
+    setupConfussionHelperValues();
+    calculateAllPairsForASCIIChars();
+}
+
+// **********
+
+u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles = 256) {
+    std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
+    ReverseLevel1_Initialize(wanted);
+    std::cout << "Setup finished! Calculating solution started..." << std::endl;
+
+    u8* result = ReverseLevel1(wanted, cycles);
+
+    return result;
+}
+
+// *****
+
+u8* ReverseLevel1_ManySolutions(u8 wanted[16], char* path, int solutionCount, int cycles = 256) {
+    std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
+    ReverseLevel1_Initialize(wanted);
+    std::cout << "Setup finished! Calculating solution started..." << std::endl;
+
+    std::vector<u8*> solutions;
+    std::vector<PreviousIndexProgressInfo> previousProgress;
+
+    do {
+        
+    } while (solutions.size() < 50)
+}
+
+// **********

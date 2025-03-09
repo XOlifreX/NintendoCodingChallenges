@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     u8 target[16] = "Hire me!!!!!!!!";
 
     start = std::chrono::system_clock::now();
-    u8* temp = ReverseLevel1(target);
+    u8* temp = ReverseLevel1_OneSolution(target);
     stop = std::chrono::system_clock::now();
 
     u8 result[32];
