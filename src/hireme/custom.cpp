@@ -3,6 +3,9 @@
 // **********
 
 std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* initial = nullptr) {
+    std::vector<u8*> foundSolutions;
+    u8 startingPoint[32];
+
     u8 indexes[32];
     u8 prevCalculatedConfusions[32];
     for (u8 j = 0; j < 32; j++) {
@@ -32,8 +35,10 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
         // *************************
         // ***** Setup Initial *****
         // *************************
-        if (i == 0 && initial == nullptr) // First cycle, setup initial indexes from wanted.
+        if (i == 0 && initial == nullptr) { // First cycle, setup initial indexes from wanted.
             setupStartReverseLevel1(wanted, indexes);
+            memcpy(startingPoint, indexes, sizeof(u8) * 32);
+        }
 
         // *************************
         // ***** ALGORITHM *********
@@ -119,10 +124,11 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
             }
 
             // Try again
-            if (initial == nullptr)
-                return nullptr;
+            if (initial != nullptr)
+                return { initial, foundSolutions };
 
             i = -1;
+            foundSolutions.clear();
             currentCheckingIndexes.clear();
             continue;
         }
@@ -196,9 +202,16 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
         if (currentCheckingIndexes.size() > 0)
             std::cout << "CURRENT HAS REPEATING VALUES" << std::endl;
 #endif
+
+        if (i == (cycles - 1)) {
+            u8 temp[32];
+            memcpy(temp, indexes, sizeof(u8) * 32);
+
+            foundSolutions.push_back(temp);
+        }
     }
 
-    return indexes;
+    return { startingPoint, foundSolutions };
 }
 
 // **********
@@ -218,19 +231,19 @@ void ReverseLevel1_Initialize(u8 wanted[16]) {
 
 // **********
 
-u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles = 256) {
+u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles) {
     std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
     ReverseLevel1_Initialize(wanted);
     std::cout << "Setup finished! Calculating solution started..." << std::endl;
 
-    u8* result = ReverseLevel1(wanted, cycles);
+    std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, cycles);
 
-    return result;
+    return result.second[0];
 }
 
 // *****
 
-u8* ReverseLevel1_ManySolutions(u8 wanted[16], char* path, int solutionCount, int cycles = 256) {
+u8* ReverseLevel1_ManySolutions(u8 wanted[16], char* path, int solutionCount, int cycles) {
     std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
     ReverseLevel1_Initialize(wanted);
     std::cout << "Setup finished! Calculating solution started..." << std::endl;
@@ -240,7 +253,9 @@ u8* ReverseLevel1_ManySolutions(u8 wanted[16], char* path, int solutionCount, in
 
     do {
         
-    } while (solutions.size() < 50)
+    } while (solutions.size() < 50);
+
+    return nullptr;
 }
 
 // **********
