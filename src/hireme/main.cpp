@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
 
     u8 result[32];
     memcpy(result, temp, sizeof(u8) * 32);
+    free(temp);
 
     std::cout << "============================================" << std::endl;
     std::cout << "============================================" << std::endl;

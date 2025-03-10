@@ -204,7 +204,7 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
 #endif
 
         if (i == (cycles - 1)) {
-            u8 temp[32];
+            u8* temp = (u8*)malloc(sizeof(u8) + 32);
             memcpy(temp, indexes, sizeof(u8) * 32);
 
             foundSolutions.push_back(temp);
@@ -238,7 +238,7 @@ u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles) {
 
     std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, cycles);
 
-    return result.second[0];
+    return result.second.at(0);
 }
 
 // *****
