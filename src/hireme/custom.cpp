@@ -4,7 +4,7 @@
 
 std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions, int cycles, u8* initial = nullptr) {
     std::vector<u8*> foundSolutions;
-    u8 startingPoint[32];
+    u8* startingPoint = (u8*)malloc(sizeof(u8) * 32);
 
     u8 indexes[32];
     u8 prevCalculatedConfusions[32];
@@ -13,8 +13,10 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
         prevCalculatedConfusions[j] = 0;
     }
 
-    if (initial != nullptr)
+    if (initial != nullptr) {
         memcpy(indexes, initial, sizeof(u8) * 32);
+        memcpy(startingPoint, initial, sizeof(u8) * 32);
+    }
     
     // Keeps track of the repeating indexes which ones need to be used.
     std::vector<std::pair<u8, u8>> currentCheckingIndexes;
@@ -61,7 +63,7 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
         // *************************
         if (hasImpossibleConfusionValue(calculatedConfusions)) {
             // If previous index(es) are available, try those.
-            if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
+            if (currentCheckingIndexes.size() > 0) {
                 bool fullyChecked = setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
 
                 if (!fullyChecked) {
@@ -183,13 +185,21 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
                 indexes[j] = temp[0];
             }
 
-            u8* temp = (u8*)malloc(sizeof(u8) + 32);
-            memcpy(temp, indexes, sizeof(u8) * 32);
+            // Sanity check found potential solution
+            u8 output[32];
+            Forward(indexes, output, confusion, diffusion);
 
-            foundSolutions.push_back(temp);
+            if (memcmp(output, wanted, 16) == 0) {
+                std::cout << "Solution found (" << std::dec << foundSolutions.size() + 1 << ")" << std::endl;
+                u8* temp = (u8*)malloc(sizeof(u8) + 32);
+                memcpy(temp, indexes, sizeof(u8) * 32);
 
-            if (!manySolutions)
-                return { startingPoint, foundSolutions };
+                foundSolutions.push_back(temp);
+
+                if (!manySolutions)
+                    return { startingPoint, foundSolutions };
+            }
+
 
             // If previous index(es) are available, try those.
             if (currentCheckingIndexes.size() > 0) {
@@ -256,10 +266,10 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
         }
         else {
             // *************************
-        // ***** Setup next round **
-        // *************************
+            // ***** Setup next round **
+            // *************************
 
-        // Setup repeating indexes.
+            // Setup repeating indexes.
             if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
                 PreviousIndexProgressInfo progress;
                 progress.iteration = i;
@@ -339,39 +349,49 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1_ManySolutions(u8 wanted[16], int 
 
     std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, true, cycles);
 
-    // Get only correct solutions
-    std::vector<u8*> correctSolutions;
-    for (int i = 0; i < result.second.size(); i++) {
-        u8 r[32];
-        memcpy(r, result.second[i], sizeof(u8) * 32);
-
-        u8 output[32];
-        Forward(r, output, confusion, diffusion);
-
-        if (memcmp(output, wanted, 16) != 0)
-            free(result.second[i]);
-        else
-            correctSolutions.push_back(result.second[i]);
-    }
-
-    return { result.first, correctSolutions };
+    return  result;
 }
 
 // *****
 
-u8* ReverseLevel1_AllSolutions(u8 wanted[16], char* path, int solutionCount, int cycles) {
+std::vector<std::pair<u8*, std::vector<u8*>>> ReverseLevel1_ManySolutions_ManyInitials(u8 wanted[16], int solutionCount, int cycles) {
     std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
     ReverseLevel1_Initialize(wanted);
-    std::cout << "Setup finished! Calculating solution started..." << std::endl;
+    std::cout << "Setup finished! Calculating solutions started..." << std::endl;
 
-    std::vector<u8*> solutions;
-    std::vector<PreviousIndexProgressInfo> previousProgress;
+    std::vector<std::pair<u8*, std::vector<u8*>>> solutions;
+    std::chrono::time_point<std::chrono::system_clock> start, stop;
 
     do {
-        
-    } while (solutions.size() < 50);
+        std::pair<u8*, std::vector<u8*>> result;
 
-    return nullptr;
+        start = std::chrono::system_clock::now();
+        do {
+            u8 initial[32] = { 0xe1, 0x88, 0xa7, 0x88, 0x57, 0x42, 0x0e, 0x3e, 0xe2, 0x34, 0xca, 0x1c, 0xdd, 0x18, 0x49, 0x7b, 0x8a, 0x82, 0x05, 0x51, 0x21, 0xa4, 0x56, 0x84, 0xe8, 0xe3, 0xbe, 0xf9, 0xdf, 0x00, 0xef, 0xd8 };
+            // setupStartReverseLevel1(wanted, initial);
+
+            std::cout << "Trying out: ";
+            std::cout << "[";
+            for (u8 j = 0; j < 32; j++) {
+                std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)initial[j];
+                if (j != 31)
+                    std::cout << ", ";
+            }
+            std::cout << "]" << std::endl << std::endl;
+
+            result = ReverseLevel1(wanted, true, cycles, initial);
+        } while (result.second.size() == 0);
+        stop = std::chrono::system_clock::now();
+
+        std::chrono::duration<double> elapsed_seconds = stop - start;
+        std::time_t end_time = std::chrono::system_clock::to_time_t(stop);
+
+        std::cout << "Solution " << std::dec << solutions.size() + 1 << "/" << solutionCount << " calculated in " << elapsed_seconds.count() << " seconds." << std::endl;
+
+        solutions.push_back(result);
+    } while (solutions.size() < solutionCount);
+
+    return solutions;
 }
 
 // **********
