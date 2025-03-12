@@ -2,7 +2,7 @@
 
 // **********
 
-std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* initial = nullptr) {
+std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions, int cycles, u8* initial = nullptr) {
     std::vector<u8*> foundSolutions;
     u8 startingPoint[32];
 
@@ -61,7 +61,7 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
         // *************************
         if (hasImpossibleConfusionValue(calculatedConfusions)) {
             // If previous index(es) are available, try those.
-            if (currentCheckingIndexes.size() > 0) {
+            if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
                 bool fullyChecked = setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
 
                 if (!fullyChecked) {
@@ -126,6 +126,8 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
             // Try again
             if (initial != nullptr)
                 return { initial, foundSolutions };
+            if (foundSolutions.size() > 0)
+                return { startingPoint, foundSolutions };
 
             i = -1;
             foundSolutions.clear();
@@ -160,54 +162,141 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], int cycles, u8* in
 #endif
 
 
-        // *************************
-        // ***** Setup next round **
-        // *************************
-
-        // Setup repeating indexes.
-        if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
-            PreviousIndexProgressInfo progress;
-            progress.iteration = i;
-
-            memcpy(progress.prevConfussion, prevCalculatedConfusions, sizeof(u8) * 32);
-            memcpy(progress.prevIndexes, indexes, sizeof(u8) * 32);
-
-            std::vector<std::pair<u8, u8>> temp(currentCheckingIndexes);
-            progress.progress = temp;
-            previousProgress.push_back(progress);
-        }
-
-        currentCheckingIndexes.clear();
-
-        memcpy(prevCalculatedConfusions, calculatedConfusions, sizeof(u8) * 32);
-
-        for (u8 j = 0; j < 32; j++) {
-            u8 currentValue = calculatedConfusions[j];
-
-            // Current is not a repearing value in the confusion.
-            if (!isConfussionRepeating(currentValue)) {
-                indexes[j] = getIndexFromConfussionValue(currentValue, false);
-
-                continue;
-            }   
-
-            // Current is repeating confusion. So we set the first index it appears in the confusion to check.
-            currentCheckingIndexes.push_back({ j, 0 });
-
-            std::vector<u8> temp = getIndexesOfConfusion(currentValue);
-            indexes[j] = temp[0];
-        }
-
-#ifdef PRINT_INFO
-        if (currentCheckingIndexes.size() > 0)
-            std::cout << "CURRENT HAS REPEATING VALUES" << std::endl;
-#endif
-
+        // ******************************************************************************************************************************************************************************
+        // ***** Setup solution found ***************************************************************************************************************************************************
+        // ******************************************************************************************************************************************************************************
         if (i == (cycles - 1)) {
+            for (u8 j = 0; j < 32; j++) {
+                u8 currentValue = calculatedConfusions[j];
+
+                // Current is not a repearing value in the confusion.
+                if (!isConfussionRepeating(currentValue)) {
+                    indexes[j] = getIndexFromConfussionValue(currentValue, false);
+
+                    continue;
+                }
+
+                // Current is repeating confusion. So we set the first index it appears in the confusion to check.
+                currentCheckingIndexes.push_back({ j, 0 });
+
+                std::vector<u8> temp = getIndexesOfConfusion(currentValue);
+                indexes[j] = temp[0];
+            }
+
             u8* temp = (u8*)malloc(sizeof(u8) + 32);
             memcpy(temp, indexes, sizeof(u8) * 32);
 
             foundSolutions.push_back(temp);
+
+            if (!manySolutions)
+                return { startingPoint, foundSolutions };
+
+            // If previous index(es) are available, try those.
+            if (currentCheckingIndexes.size() > 0) {
+                bool fullyChecked = setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
+
+                if (!fullyChecked) {
+                    u8 count = 0;
+                    for (u8 j = 0; j < 32; j++) {
+                        if (count >= currentCheckingIndexes.size())
+                            continue;
+                        if (j != currentCheckingIndexes[count].first)
+                            continue;
+
+                        std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
+                        indexes[j] = temp[currentCheckingIndexes[count].second];
+                        count++;
+                    }
+
+                    i--;
+                    continue;
+                }
+            }
+
+            // Restart from the previous in progress index checks.
+            if (previousProgress.size() > 0) {
+                // *********************************************
+                // Setup previous state
+                PreviousIndexProgressInfo aPreviousProgress = previousProgress[previousProgress.size() - 1];
+
+                i = aPreviousProgress.iteration;
+
+                memcpy(prevCalculatedConfusions, aPreviousProgress.prevConfussion, sizeof(u8) * 32);
+                memcpy(indexes, aPreviousProgress.prevIndexes, sizeof(u8) * 32);
+
+                std::vector<std::pair<u8, u8>> temp(aPreviousProgress.progress);
+                currentCheckingIndexes = temp;
+
+                previousProgress.pop_back();
+
+                // *********************************************
+                // Setup next indexes to check in the next iteration.
+                setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
+
+                u8 count = 0;
+                for (u8 j = 0; j < 32; j++) {
+                    if (count >= currentCheckingIndexes.size())
+                        continue;
+                    if (j != currentCheckingIndexes[count].first)
+                        continue;
+
+                    std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
+                    indexes[j] = temp[currentCheckingIndexes[count].second];
+                    count++;
+                }
+
+#ifdef PRINT_INFO
+                std::cout << "Nothing more to do. Jumping back to iteration " << std::dec << i << std::endl;
+#endif
+
+                i--;
+                continue;
+                // *********************************************
+            }
+        }
+        else {
+            // *************************
+        // ***** Setup next round **
+        // *************************
+
+        // Setup repeating indexes.
+            if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
+                PreviousIndexProgressInfo progress;
+                progress.iteration = i;
+
+                memcpy(progress.prevConfussion, prevCalculatedConfusions, sizeof(u8) * 32);
+                memcpy(progress.prevIndexes, indexes, sizeof(u8) * 32);
+
+                std::vector<std::pair<u8, u8>> temp(currentCheckingIndexes);
+                progress.progress = temp;
+                previousProgress.push_back(progress);
+            }
+
+            currentCheckingIndexes.clear();
+
+            memcpy(prevCalculatedConfusions, calculatedConfusions, sizeof(u8) * 32);
+
+            for (u8 j = 0; j < 32; j++) {
+                u8 currentValue = calculatedConfusions[j];
+
+                // Current is not a repearing value in the confusion.
+                if (!isConfussionRepeating(currentValue)) {
+                    indexes[j] = getIndexFromConfussionValue(currentValue, false);
+
+                    continue;
+                }
+
+                // Current is repeating confusion. So we set the first index it appears in the confusion to check.
+                currentCheckingIndexes.push_back({ j, 0 });
+
+                std::vector<u8> temp = getIndexesOfConfusion(currentValue);
+                indexes[j] = temp[0];
+            }
+
+#ifdef PRINT_INFO
+            if (currentCheckingIndexes.size() > 0)
+                std::cout << "CURRENT HAS REPEATING VALUES" << std::endl;
+#endif
         }
     }
 
@@ -236,14 +325,41 @@ u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles) {
     ReverseLevel1_Initialize(wanted);
     std::cout << "Setup finished! Calculating solution started..." << std::endl;
 
-    std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, cycles);
+    std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, false, cycles);
 
     return result.second.at(0);
 }
 
 // *****
 
-u8* ReverseLevel1_ManySolutions(u8 wanted[16], char* path, int solutionCount, int cycles) {
+std::pair<u8*, std::vector<u8*>> ReverseLevel1_ManySolutions(u8 wanted[16], int cycles) {
+    std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
+    ReverseLevel1_Initialize(wanted);
+    std::cout << "Setup finished! Calculating solution started..." << std::endl;
+
+    std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, true, cycles);
+
+    // Get only correct solutions
+    std::vector<u8*> correctSolutions;
+    for (int i = 0; i < result.second.size(); i++) {
+        u8 r[32];
+        memcpy(r, result.second[i], sizeof(u8) * 32);
+
+        u8 output[32];
+        Forward(r, output, confusion, diffusion);
+
+        if (memcmp(output, wanted, 16) != 0)
+            free(result.second[i]);
+        else
+            correctSolutions.push_back(result.second[i]);
+    }
+
+    return { result.first, correctSolutions };
+}
+
+// *****
+
+u8* ReverseLevel1_AllSolutions(u8 wanted[16], char* path, int solutionCount, int cycles) {
     std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
     ReverseLevel1_Initialize(wanted);
     std::cout << "Setup finished! Calculating solution started..." << std::endl;

@@ -25,9 +25,7 @@ int main_test() {
     return memcmp(output, target, 16); // => contact apply(at)nerd.nintendo.com
 }
 
-int main(int argc, char* argv[]) {
-    // return main_test();
-
+int oneSolutionLevel1() {
     std::chrono::time_point<std::chrono::system_clock> start, stop;
 
     // u8 target[16] = "Reverse me fast";
@@ -52,7 +50,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "]" << std::endl;
     std::cout << "======================" << std::endl;
-    
+
     std::chrono::duration<double> elapsed_seconds = stop - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(stop);
 
@@ -75,4 +73,71 @@ int main(int argc, char* argv[]) {
     std::cout << "============================================" << std::endl;
 
     return memcmp(output, target, 16); // => contact apply(at)nerd.nintendo.com
+}
+
+int manySolutionsLevel1() {
+    std::chrono::time_point<std::chrono::system_clock> start, stop;
+
+    // u8 target[16] = "Reverse me fast";
+    u8 target[16] = "Hire me!!!!!!!!";
+
+    std::cout << "Target: " << std::endl;
+    for (u8 i = 0; i < 16; i++)
+        std::cout << target[i];
+    std::cout << std::endl << "============================================" << std::endl;
+
+    start = std::chrono::system_clock::now();
+    std::pair<u8*, std::vector<u8*>> result = ReverseLevel1_ManySolutions(target);
+    stop = std::chrono::system_clock::now();
+
+    std::chrono::duration<double> elapsed_seconds = stop - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(stop);
+
+    std::vector<u8*> solutions = result.second;
+
+    std::cout << "============================================" << std::endl;
+    std::cout << "Found solutions in " << elapsed_seconds.count() << " seconds." << std::endl;
+    std::cout << std::dec << solutions.size() << " solutions found!!" << std::endl;
+    std::cout << "============================================" << std::endl;
+    std::cout << "============================================" << std::endl;
+    std::cout << "============================================" << std::endl;
+
+    for (int i = 0; i < solutions.size(); i++) {
+        std::cout << "Solution " << std::dec << i + 1 << ":" << std::endl;
+        u8 result[32];
+        memcpy(result, solutions[i], sizeof(u8) * 32);
+        free(solutions[i]);
+
+        std::cout << "[";
+        for (u8 j = 0; j < 32; j++) {
+            std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)result[j];
+            if (j != 31)
+                std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+        std::cout << "======================" << std::endl;
+
+        u8 output[32];
+        Forward(result, output, confusion, diffusion);
+
+        std::cout << "Target:       " << target << std::endl;
+        std::cout << "Calculated:   " << output << std::endl;
+
+        std::cout << "Output: [";
+        for (u8 j = 0; j < 16; j++) {
+            std::cout << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)output[j];
+            if (j != 15)
+                std::cout << ", ";
+        }
+        std::cout << "]" << std::endl;
+        std::cout << "============================================" << std::endl;
+    }
+
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    // return main_test();
+    // return oneSolutionLevel1();
+    return manySolutionsLevel1();
 }
