@@ -63,25 +63,23 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
         // *************************
         if (hasImpossibleConfusionValue(calculatedConfusions)) {
             // If previous index(es) are available, try those.
-            if (currentCheckingIndexes.size() > 0) {
-                bool fullyChecked = setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
+            if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
+                setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
 
-                if (!fullyChecked) {
-                    u8 count = 0;
-                    for (u8 j = 0; j < 32; j++) {
-                        if (count >= currentCheckingIndexes.size())
-                            continue;
-                        if (j != currentCheckingIndexes[count].first)
-                            continue;
+                u8 count = 0;
+                for (u8 j = 0; j < 32; j++) {
+                    if (count >= currentCheckingIndexes.size())
+                        continue;
+                    if (j != currentCheckingIndexes[count].first)
+                        continue;
 
-                        std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
-                        indexes[j] = temp[currentCheckingIndexes[count].second];
-                        count++;
-                    }
-
-                    i--;
-                    continue;
+                    std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
+                    indexes[j] = temp[currentCheckingIndexes[count].second];
+                    count++;
                 }
+
+                i--;
+                continue;
             }
 
             // Restart from the previous in progress index checks.
@@ -168,6 +166,7 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
         // ***** Setup solution found ***************************************************************************************************************************************************
         // ******************************************************************************************************************************************************************************
         if (i == (cycles - 1)) {
+            std::vector<std::pair<u8, u8>> finalConfusionRepeatingIndexes;
             for (u8 j = 0; j < 32; j++) {
                 u8 currentValue = calculatedConfusions[j];
 
@@ -179,48 +178,95 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1(u8 wanted[16], bool manySolutions
                 }
 
                 // Current is repeating confusion. So we set the first index it appears in the confusion to check.
-                currentCheckingIndexes.push_back({ j, 0 });
+                finalConfusionRepeatingIndexes.push_back({ j, 0 });
 
                 std::vector<u8> temp = getIndexesOfConfusion(currentValue);
                 indexes[j] = temp[0];
             }
 
-            // Sanity check found potential solution
-            u8 output[32];
-            Forward(indexes, output, confusion, diffusion);
+            // A calculated confusion on the last step can still have multiple possible indexes. This covers all of those index
+            //     combinations to find each possible solution from the calculated confusion
+            bool firstOneChecked = false;
+            if (finalConfusionRepeatingIndexes.size() > 0) {
+                do {
+                    if (firstOneChecked) {
+                        setupIndexesListFromCheckingRepeatingList(finalConfusionRepeatingIndexes, calculatedConfusions);
 
-            if (memcmp(output, wanted, 16) == 0) {
-                std::cout << "Solution found (" << std::dec << foundSolutions.size() + 1 << ")" << std::endl;
-                u8* temp = (u8*)malloc(sizeof(u8) + 32);
-                memcpy(temp, indexes, sizeof(u8) * 32);
+                        u8 count = 0;
+                        for (u8 j = 0; j < 32; j++) {
+                            if (count >= finalConfusionRepeatingIndexes.size())
+                                continue;
+                            if (j != finalConfusionRepeatingIndexes[count].first)
+                                continue;
 
-                foundSolutions.push_back(temp);
-
-                if (!manySolutions)
-                    return { startingPoint, foundSolutions };
-            }
-
-
-            // If previous index(es) are available, try those.
-            if (currentCheckingIndexes.size() > 0) {
-                bool fullyChecked = setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
-
-                if (!fullyChecked) {
-                    u8 count = 0;
-                    for (u8 j = 0; j < 32; j++) {
-                        if (count >= currentCheckingIndexes.size())
-                            continue;
-                        if (j != currentCheckingIndexes[count].first)
-                            continue;
-
-                        std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
-                        indexes[j] = temp[currentCheckingIndexes[count].second];
-                        count++;
+                            std::vector<u8> temp = getIndexesOfConfusion(calculatedConfusions[j]);
+                            indexes[j] = temp[finalConfusionRepeatingIndexes[count].second];
+                            count++;
+                        }
+                    }
+                    else {
+                        firstOneChecked = true;
                     }
 
-                    i--;
-                    continue;
+                    // Sanity check found potential solution
+                    u8* tInput = (u8*)malloc(sizeof(u8) * 32);
+                    memcpy(tInput, indexes, sizeof(u8) * 32);
+
+                    u8 output[32];
+                    Forward(tInput, output, confusion, diffusion);
+                    free(tInput);
+
+                    if (memcmp(output, wanted, 16) == 0) {
+#ifdef PRINT_INFO
+                        std::cout << "Solution found (" << std::dec << foundSolutions.size() + 1 << ")" << std::endl;
+#endif
+                        u8* temp = (u8*)malloc(sizeof(u8) + 32);
+                        memcpy(temp, indexes, sizeof(u8) * 32);
+
+                        foundSolutions.push_back(temp);
+
+                        if (!manySolutions)
+                            return { startingPoint, foundSolutions };
+                    }
+                } while (!hasNoMoreRepeatingIndexesToCheck(finalConfusionRepeatingIndexes, calculatedConfusions));
+            }
+            else {
+                // Sanity check found potential solution
+                u8 output[32];
+                Forward(indexes, output, confusion, diffusion);
+
+                if (memcmp(output, wanted, 16) == 0) {
+#ifdef PRINT_INFO
+                    std::cout << "Solution found (" << std::dec << foundSolutions.size() + 1 << ")" << std::endl;
+#endif
+                    u8* temp = (u8*)malloc(sizeof(u8) + 32);
+                    memcpy(temp, indexes, sizeof(u8) * 32);
+
+                    foundSolutions.push_back(temp);
+
+                    if (!manySolutions)
+                        return { startingPoint, foundSolutions };
                 }
+            }
+
+            // If previous index(es) are available, try those.
+            if (currentCheckingIndexes.size() > 0 && !hasNoMoreRepeatingIndexesToCheck(currentCheckingIndexes, prevCalculatedConfusions)) {
+                setupIndexesListFromCheckingRepeatingList(currentCheckingIndexes, prevCalculatedConfusions);
+
+                u8 count = 0;
+                for (u8 j = 0; j < 32; j++) {
+                    if (count >= currentCheckingIndexes.size())
+                        continue;
+                    if (j != currentCheckingIndexes[count].first)
+                        continue;
+
+                    std::vector<u8> temp = getIndexesOfConfusion(prevCalculatedConfusions[j]);
+                    indexes[j] = temp[currentCheckingIndexes[count].second];
+                    count++;
+                }
+
+                i--;
+                continue;
             }
 
             // Restart from the previous in progress index checks.
@@ -337,6 +383,7 @@ u8* ReverseLevel1_OneSolution(u8 wanted[16], int cycles) {
 
     std::pair<u8*, std::vector<u8*>> result = ReverseLevel1(wanted, false, cycles);
 
+    free(result.first);
     return result.second.at(0);
 }
 
@@ -354,7 +401,7 @@ std::pair<u8*, std::vector<u8*>> ReverseLevel1_ManySolutions(u8 wanted[16], int 
 
 // *****
 
-std::vector<std::pair<u8*, std::vector<u8*>>> ReverseLevel1_ManySolutions_ManyInitials(u8 wanted[16], int solutionCount, int cycles) {
+void ReverseLevel1_ManySolutions_ManyInitials(u8 wanted[16], char* name, int solutionCount, int cycles) {
     std::cout << "Settings things up for the Level 1 calculator..." << std::endl;
     ReverseLevel1_Initialize(wanted);
     std::cout << "Setup finished! Calculating solutions started..." << std::endl;
@@ -362,14 +409,19 @@ std::vector<std::pair<u8*, std::vector<u8*>>> ReverseLevel1_ManySolutions_ManyIn
     std::vector<std::pair<u8*, std::vector<u8*>>> solutions;
     std::chrono::time_point<std::chrono::system_clock> start, stop;
 
+    std::ofstream resultFile(name);
+    int counter = 0;
+
     do {
         std::pair<u8*, std::vector<u8*>> result;
 
         start = std::chrono::system_clock::now();
         do {
-            u8 initial[32] = { 0xe1, 0x88, 0xa7, 0x88, 0x57, 0x42, 0x0e, 0x3e, 0xe2, 0x34, 0xca, 0x1c, 0xdd, 0x18, 0x49, 0x7b, 0x8a, 0x82, 0x05, 0x51, 0x21, 0xa4, 0x56, 0x84, 0xe8, 0xe3, 0xbe, 0xf9, 0xdf, 0x00, 0xef, 0xd8 };
-            // setupStartReverseLevel1(wanted, initial);
+            // u8 initial[32] = { 0xe1, 0x88, 0xa7, 0x88, 0x57, 0x42, 0x0e, 0x3e, 0xe2, 0x34, 0xca, 0x1c, 0xdd, 0x18, 0x49, 0x7b, 0x8a, 0x82, 0x05, 0x51, 0x21, 0xa4, 0x56, 0x84, 0xe8, 0xe3, 0xbe, 0xf9, 0xdf, 0x00, 0xef, 0xd8 };
+            u8* initial = (u8*)malloc(sizeof(u8) * 32);
+            setupStartReverseLevel1(wanted, initial);
 
+#ifdef PRINT_INFO
             std::cout << "Trying out: ";
             std::cout << "[";
             for (u8 j = 0; j < 32; j++) {
@@ -378,6 +430,7 @@ std::vector<std::pair<u8*, std::vector<u8*>>> ReverseLevel1_ManySolutions_ManyIn
                     std::cout << ", ";
             }
             std::cout << "]" << std::endl << std::endl;
+#endif
 
             result = ReverseLevel1(wanted, true, cycles, initial);
         } while (result.second.size() == 0);
@@ -386,12 +439,48 @@ std::vector<std::pair<u8*, std::vector<u8*>>> ReverseLevel1_ManySolutions_ManyIn
         std::chrono::duration<double> elapsed_seconds = stop - start;
         std::time_t end_time = std::chrono::system_clock::to_time_t(stop);
 
-        std::cout << "Solution " << std::dec << solutions.size() + 1 << "/" << solutionCount << " calculated in " << elapsed_seconds.count() << " seconds." << std::endl;
+        std::cout << "Iteration " << std::dec << (counter + 1) << "/" << solutionCount << " - Found " << result.second.size() << " solutions in " << elapsed_seconds.count() << " seconds." << std::endl;
 
-        solutions.push_back(result);
-    } while (solutions.size() < solutionCount);
+        resultFile << "Starting point: " << std::endl;
+        resultFile << "[";
+        for (u8 j = 0; j < 32; j++) {
+            resultFile << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)result.first[j];
+            if (j != 31)
+                resultFile << ", ";
+        }
+        resultFile << "]" << std::endl;
 
-    return solutions;
+        std::vector<u8*> solutions = result.second;
+        for (int j = 0; j < solutions.size(); j++) {
+            resultFile << "    [";
+            for (u8 k = 0; k < 32; k++) {
+                resultFile << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex << (int)solutions[j][k];
+                if (k != 31)
+                    resultFile << ", ";
+            }
+            resultFile << "] ";
+            resultFile << "[";
+            for (u8 k = 0; k < 32; k++) {
+                resultFile << std::dec << (int)solutions[j][k];
+                if (k != 31)
+                    resultFile << ", ";
+            }
+            resultFile << "]" << std::endl;
+        }
+
+        for (int j = 0; j < result.second.size(); j++)
+            free(result.second[j]);
+        free(result.first);
+
+        resultFile << "============================================" << std::endl;
+
+        counter++;
+    } while (counter < solutionCount);
+
+    resultFile.close();
+
+    std::cout << "============================================" << std::endl;
+    std::cout << "Finished! View all results in " << name << std::endl;
 }
 
 // **********
